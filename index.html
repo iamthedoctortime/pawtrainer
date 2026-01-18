@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gemini Vision Bot | Static</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        
+        .stealth-blur { backdrop-filter: blur(20px); }
+        .log-entry { animation: slideIn 0.2s ease-out; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-4px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+    <script type="importmap">
+    {
+      "imports": {
+        "@google/genai": "https://esm.sh/@google/genai@^1.37.0"
+      }
+    }
+    </script>
+</head>
+<body class="bg-slate-950 text-white overflow-hidden font-sans">
+    <div id="app" class="flex flex-col h-screen w-full max-w-lg mx-auto bg-slate-950 shadow-2xl overflow-hidden relative selection:bg-blue-500/30">
+        
+        <!-- Header Bar -->
+        <header class="bg-slate-900/80 backdrop-blur-md p-5 border-b border-slate-800 flex justify-between items-center z-20">
+            <div class="flex items-center gap-2">
+                <div class="p-2 bg-blue-600/20 rounded-lg">
+                    <i data-lucide="cpu" class="text-blue-400 w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black tracking-tight text-white leading-none">
+                        GEMINI <span class="text-blue-500 font-normal">CORE</span>
+                    </h1>
+                    <p id="status-text" class="text-[10px] text-slate-500 font-mono uppercase tracking-widest mt-1">
+                        Classic Mode: Ready
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-end gap-1">
+               <div class="flex items-center gap-2 px-3 py-1 bg-slate-950 rounded-full border border-slate-800">
+                 <div id="conn-dot" class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] transition-all duration-300"></div>
+                 <span id="conn-text" class="text-[10px] font-bold text-slate-300 uppercase">Offline</span>
+               </div>
+            </div>
+        </header>
+
+        <main class="flex-1 flex flex-col p-5 gap-5 overflow-hidden relative z-10">
+            <!-- Viewfinder -->
+            <section id="viewfinder" class="relative group rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black aspect-video cursor-pointer active:scale-[0.99] transition-transform">
+                <video id="camera-video" playsinline muted autoplay class="w-full h-full object-cover"></video>
+                <div id="camera-overlay" class="absolute inset-0 bg-black transition-opacity duration-700 pointer-events-none opacity-0"></div>
+                
+                <div class="absolute top-4 left-4 pointer-events-none">
+                    <div class="flex items-center gap-2 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-[10px] font-mono text-blue-400 uppercase tracking-tighter">
+                        <i data-lucide="activity" class="w-3 h-3 animate-pulse"></i>
+                        Live Feed 1080p
+                    </div>
+                </div>
+
+                <div class="absolute top-4 right-4 z-10 bg-black/40 backdrop-blur-md p-2 rounded-full border border-white/10">
+                    <i id="mode-icon" data-lucide="sun" class="w-5 h-5 text-amber-400"></i>
+                </div>
+            </section>
+
+            <!-- Action Center -->
+            <div class="grid grid-cols-2 gap-4">
+                <button id="btn-standby" class="flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all border bg-rose-600 border-rose-400 text-white shadow-[0_0_20px_rgba(225,29,72,0.3)]">
+                    <i data-lucide="power" class="w-5 h-5"></i>
+                    <span>STANDBY</span>
+                </button>
+                <button id="btn-active" class="flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all border bg-slate-900 border-slate-800 text-slate-500">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                    <span>ACTIVE</span>
+                </button>
+            </div>
+
+            <!-- Connectivity and Tools -->
+            <div class="flex flex-col gap-4">
+                <div class="grid grid-cols-3 gap-3">
+                    <button id="btn-connect" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-blue-400 bg-blue-600 text-white hover:bg-blue-500 active:translate-y-0.5 transition-all text-[11px] font-bold uppercase tracking-wider">
+                        <i id="conn-icon" data-lucide="bluetooth" class="w-5 h-5"></i>
+                        <span id="conn-btn-label">Link HC-06</span>
+                    </button>
+                    
+                    <button id="btn-scan" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-100 hover:bg-slate-700 active:translate-y-0.5 transition-all text-[11px] font-bold uppercase tracking-wider">
+                        <i id="scan-icon" data-lucide="camera" class="w-5 h-5"></i>
+                        Manual Scan
+                    </button>
+
+                    <button id="btn-test" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-violet-600 border border-violet-400 text-white hover:bg-violet-500 active:translate-y-0.5 transition-all text-[11px] font-bold uppercase tracking-wider">
+                        <i data-lucide="play-circle" class="w-5 h-5"></i>
+                        Test Audio
+                    </button>
+                </div>
+
+                <!-- Sync Progress -->
+                <div id="sync-panel" class="hidden flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                    <i data-lucide="alert-circle" class="w-4 h-4 text-amber-500"></i>
+                    <div class="flex-1">
+                        <p class="text-[10px] text-amber-200 font-bold uppercase tracking-wider">Syncing Neural Voices</p>
+                        <div class="h-1 bg-slate-800 rounded-full mt-1 overflow-hidden">
+                            <div id="sync-bar" class="h-full bg-amber-500 transition-all duration-500 w-0"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Log Viewer -->
+            <div class="flex-1 min-h-0 bg-gray-950 rounded-lg border border-gray-800 flex flex-col">
+                <div class="p-2 border-b border-gray-800 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
+                    Kernel Logs
+                </div>
+                <div id="log-container" class="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-[11px]">
+                    <div class="text-gray-600 italic text-center mt-4">Initializing system core...</div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Stealth Overlay -->
+        <div id="stealth-overlay" class="absolute inset-0 bg-slate-950/90 z-50 hidden flex items-center justify-center stealth-blur cursor-pointer transition-all duration-1000">
+            <div class="text-center">
+                <div class="relative mb-8 group">
+                    <div class="absolute inset-0 bg-blue-500 blur-3xl rounded-full opacity-20 animate-pulse"></div>
+                    <div class="relative p-6 bg-slate-900 border border-slate-800 rounded-full shadow-2xl">
+                        <i data-lucide="moon" class="w-12 h-12 text-blue-500 mx-auto"></i>
+                    </div>
+                </div>
+                <p class="text-slate-100 font-black tracking-[0.3em] uppercase text-xs">STEALTH MODE</p>
+                <div class="flex items-center justify-center gap-2 mt-4">
+                   <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                   <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 200ms"></div>
+                   <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 400ms"></div>
+                </div>
+                <p class="text-slate-500 text-[10px] mt-6 font-mono uppercase tracking-widest">Tap to resume</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { GoogleGenAI, Modality } from "@google/genai";
+
+        // --- CONSTANTS ---
+        const VOICE_DEFINITIONS = [
+            { key: "STAND", prompt: "Say: Stand", repeats: 2 },
+            { key: "SIT", prompt: "Say: Sit", repeats: 2 },
+            { key: "DOWN", prompt: "Say: Down", repeats: 2 },
+            { key: "SIDE", prompt: "Say: Side", repeats: 2 },
+            { key: "PAW SHAKE", prompt: "Say: Paw Shake", repeats: 2 },
+            { key: "GOOD DOG", prompt: "Say enthusiastically: Good Dog!", repeats: 1 },
+            { key: "NO", prompt: "Say firmly: No!", repeats: 1 },
+        ];
+        const TIMEOUT_SECONDS = 20;
+
+        // --- STATE ---
+        let state = {
+            isOn: false,
+            isConnected: false,
+            isDimmed: false,
+            isScanning: false,
+            isProcessing: false,
+            logs: [],
+            voiceBuffers: new Map(),
+            isPlaying: false
+        };
+
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        let audioCtx = null;
+        let serialPort = null;
+        let serialWriter = null;
+        let wakeLock = null;
+        let analysisTimeout = null;
+
+        // --- HELPERS ---
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+            state.logs.push({ id: Math.random().toString(36), timestamp, message, type });
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('log-container');
+            container.innerHTML = state.logs.map(log => `
+                <div class="flex gap-2 log-entry">
+                    <span class="text-gray-500 whitespace-nowrap">[${log.timestamp}]</span>
+                    <span class="${
+                        log.type === 'error' ? 'text-red-400' :
+                        log.type === 'success' ? 'text-green-400' :
+                        log.type === 'warning' ? 'text-yellow-400' :
+                        'text-blue-300'
+                    }">${log.message}</span>
+                </div>
+            `).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function decodePCM(data, ctx, sampleRate = 24000, numChannels = 1) {
+            let pcmData = new Int16Array(data.buffer, data.byteOffset, data.byteLength / 2);
+            const frameCount = pcmData.length / numChannels;
+            const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+            for (let channel = 0; channel < numChannels; channel++) {
+                const channelData = buffer.getChannelData(channel);
+                for (let i = 0; i < frameCount; i++) {
+                    channelData[i] = pcmData[i * numChannels + channel] / 32768.0;
+                }
+            }
+            return buffer;
+        }
+
+        function decodeBase64(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes;
+        }
+
+        // --- CORE FUNCTIONS ---
+        async function loadVoices() {
+            const panel = document.getElementById('sync-panel');
+            const bar = document.getElementById('sync-bar');
+            panel.classList.remove('hidden');
+            addLog("Syncing neural voice commands...", "info");
+
+            let loaded = 0;
+            for (const def of VOICE_DEFINITIONS) {
+                try {
+                    const response = await ai.models.generateContent({
+                        model: "gemini-2.5-flash-preview-tts",
+                        contents: [{ parts: [{ text: def.prompt }] }],
+                        config: {
+                            responseModalities: [Modality.AUDIO],
+                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+                        }
+                    });
+                    const base64 = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                    if (base64 && audioCtx) {
+                        const buffer = decodePCM(decodeBase64(base64), audioCtx);
+                        state.voiceBuffers.set(def.key, buffer);
+                        loaded++;
+                        bar.style.width = `${(loaded / VOICE_DEFINITIONS.length) * 100}%`;
+                    }
+                } catch (e) {
+                    addLog(`Voice fail: ${def.key}`, "error");
+                }
+            }
+            addLog(`Voice sync complete (${loaded}/${VOICE_DEFINITIONS.length})`, "success");
+            setTimeout(() => panel.classList.add('hidden'), 2000);
+        }
+
+        async function playVoice(commandKey) {
+            if (state.isPlaying) return;
+            const buffer = state.voiceBuffers.get(commandKey);
+            const def = VOICE_DEFINITIONS.find(d => d.key === commandKey);
+            if (!buffer || !audioCtx) return;
+
+            state.isPlaying = true;
+            try {
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                addLog(`Executing: "${commandKey}"`, "success");
+                for (let i = 0; i < def.repeats; i++) {
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(audioCtx.destination);
+                    const waitEnd = new Promise(r => source.onended = r);
+                    source.start();
+                    await waitEnd;
+                    if (i < def.repeats - 1) await new Promise(r => setTimeout(r, 800));
+                }
+            } catch (e) { addLog("Audio error", "error"); }
+            finally { state.isPlaying = false; }
+        }
+
+        async function takePhoto() {
+            const video = document.getElementById('camera-video');
+            const canvas = document.createElement('canvas');
+            const maxW = 800, maxH = 600;
+            let w = video.videoWidth, h = video.videoHeight;
+            const ratio = Math.min(maxW / w, maxH / h, 1);
+            canvas.width = w * ratio; canvas.height = h * ratio;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        }
+
+        async function runCycle() {
+            if (state.isProcessing) return;
+            state.isProcessing = true;
+            updateUIState();
+            
+            setDimmed(false);
+            addLog("Analyzing visual frame...", "info");
+            
+            analysisTimeout = setTimeout(() => {
+                addLog("Analysis timed out", "error");
+                state.isProcessing = false;
+                if (state.isOn) setDimmed(true);
+                updateUIState();
+            }, TIMEOUT_SECONDS * 1000);
+
+            try {
+                const b64 = await takePhoto();
+                const response = await ai.models.generateContent({
+                    model: 'gemini-3-pro-preview',
+                    contents: {
+                        parts: [
+                            { text: "Analyze dog pose: 0=None, 1=Standing, 2=Sitting, 3=Lying down, 4=On back/side. Return DIGIT ONLY." },
+                            { inlineData: { mimeType: 'image/jpeg', data: b64 } }
+                        ]
+                    },
+                    config: { temperature: 0.1 }
+                });
+                const result = response.text?.trim().match(/[0-4]/)?.[0] || "0";
+                addLog(`Gemini result: ${result}`, "success");
+                
+                if (serialWriter && state.isConnected) {
+                    await serialWriter.write(new TextEncoder().encode(result));
+                    addLog(`Sent to HC-06: ${result}`, "info");
+                }
+            } catch (e) {
+                addLog(`Error: ${e.message}`, "error");
+            } finally {
+                clearTimeout(analysisTimeout);
+                state.isProcessing = false;
+                if (state.isOn) setDimmed(true);
+                updateUIState();
+            }
+        }
+
+        async function connectSerial() {
+            if (!('serial' in navigator)) return addLog("Web Serial unsupported", "error");
+            state.isScanning = true;
+            updateUIState();
+            try {
+                addLog("Searching for HC-06...", "info");
+                serialPort = await navigator.serial.requestPort();
+                await serialPort.open({ baudRate: 9600 });
+                serialWriter = serialPort.writable.getWriter();
+                state.isConnected = true;
+                addLog("Bluetooth Classic Linked", "success");
+                
+                const reader = serialPort.readable.getReader();
+                (async () => {
+                    const decoder = new TextDecoder();
+                    try {
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            if (done) break;
+                            const text = decoder.decode(value).trim().toUpperCase();
+                            if (text) {
+                                addLog(`Serial In: ${text}`, "info");
+                                if (text.includes("PHOTO")) {
+                                    if (state.isOn) runCycle();
+                                } else {
+                                    const matched = VOICE_DEFINITIONS.find(d => text.includes(d.key));
+                                    if (matched) playVoice(matched.key);
+                                }
+                            }
+                        }
+                    } catch (e) { addLog("Serial loss", "error"); }
+                    finally { state.isConnected = false; updateUIState(); }
+                })();
+            } catch (e) { addLog(`Connect fail: ${e.message}`, "error"); }
+            finally { state.isScanning = false; updateUIState(); }
+        }
+
+        // --- UI UPDATES ---
+        function setDimmed(val) {
+            state.isDimmed = val;
+            const overlay = document.getElementById('stealth-overlay');
+            const camOverlay = document.getElementById('camera-overlay');
+            const modeIcon = document.getElementById('mode-icon');
+            
+            if (val) {
+                overlay.classList.remove('hidden');
+                camOverlay.classList.replace('opacity-0', 'opacity-90');
+                modeIcon.setAttribute('data-lucide', 'moon');
+                modeIcon.classList.replace('text-amber-400', 'text-blue-400');
+            } else {
+                overlay.classList.add('hidden');
+                camOverlay.classList.replace('opacity-90', 'opacity-0');
+                modeIcon.setAttribute('data-lucide', 'sun');
+                modeIcon.classList.replace('text-blue-400', 'text-amber-400');
+            }
+            lucide.createIcons();
+        }
+
+        function updateUIState() {
+            const btnStandby = document.getElementById('btn-standby');
+            const btnActive = document.getElementById('btn-active');
+            const btnConnect = document.getElementById('btn-connect');
+            const statusTxt = document.getElementById('status-text');
+            const dot = document.getElementById('conn-dot');
+            const connTxt = document.getElementById('conn-text');
+            const connIcon = document.getElementById('conn-icon');
+            const connLabel = document.getElementById('conn-btn-label');
+            const scanIcon = document.getElementById('scan-icon');
+
+            btnStandby.className = `flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all border ${!state.isOn ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_20px_rgba(225,29,72,0.3)]' : 'bg-slate-900 border-slate-800 text-slate-500'}`;
+            btnActive.className = `flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all border ${state.isOn ? 'bg-emerald-600 border-emerald-400 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]' : 'bg-slate-900 border-slate-800 text-slate-500'}`;
+            
+            statusTxt.textContent = `Classic Mode: ${state.isProcessing ? 'Analyzing...' : 'Ready'}`;
+            
+            dot.className = `w-2 h-2 rounded-full ${state.isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]'}`;
+            connTxt.textContent = state.isConnected ? 'Linked' : 'Offline';
+            
+            connIcon.setAttribute('data-lucide', state.isScanning ? 'refresh-cw' : (state.isConnected ? 'bluetooth-connected' : 'bluetooth'));
+            if (state.isScanning) connIcon.classList.add('animate-spin'); else connIcon.classList.remove('animate-spin');
+            connLabel.textContent = state.isScanning ? 'Searching' : (state.isConnected ? 'Paired' : 'Link HC-06');
+            
+            if (state.isProcessing) scanIcon.classList.add('animate-pulse', 'text-blue-400'); else scanIcon.classList.remove('animate-pulse', 'text-blue-400');
+            
+            lucide.createIcons();
+        }
+
+        // --- INIT ---
+        window.addEventListener('DOMContentLoaded', async () => {
+            lucide.createIcons();
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+            
+            // Camera Init
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                const video = document.getElementById('camera-video');
+                video.srcObject = stream;
+                addLog("Vision system initialized", "success");
+            } catch (e) { addLog("Camera access denied", "error"); }
+
+            if (process.env.API_KEY) loadVoices(); else addLog("API Key missing", "error");
+
+            // Events
+            document.getElementById('btn-standby').onclick = () => {
+                state.isOn = false;
+                addLog("System standby", "warning");
+                setDimmed(false);
+                if (wakeLock) { wakeLock.release(); wakeLock = null; }
+                updateUIState();
+            };
+
+            document.getElementById('btn-active').onclick = async () => {
+                state.isOn = true;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                addLog("Security mode enabled", "info");
+                setDimmed(true);
+                if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+                updateUIState();
+            };
+
+            document.getElementById('btn-connect').onclick = connectSerial;
+            document.getElementById('btn-scan').onclick = () => { if (state.isOn) runCycle(); };
+            document.getElementById('btn-test').onclick = () => {
+                const rnd = VOICE_DEFINITIONS[Math.floor(Math.random() * VOICE_DEFINITIONS.length)];
+                playVoice(rnd.key);
+            };
+
+            const wake = () => {
+                if (state.isDimmed) {
+                    setDimmed(false);
+                    setTimeout(() => { if (state.isOn && !state.isProcessing) setDimmed(true); }, 10000);
+                }
+            };
+            document.getElementById('viewfinder').onclick = wake;
+            document.getElementById('stealth-overlay').onclick = wake;
+        });
+    </script>
+</body>
+</html>
