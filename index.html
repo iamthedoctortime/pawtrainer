@@ -3,20 +3,53 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gemini Vision Bot | Static</title>
+    <title>Nova Vision AI | Security Agent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
+
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #6d28d9;
+            --bg: #030712;
+        }
+
+        body { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
         
-        .stealth-blur { backdrop-filter: blur(20px); }
-        .log-entry { animation: slideIn 0.2s ease-out; }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-4px); }
-            to { opacity: 1; transform: translateX(0); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #030712; }
+        ::-webkit-scrollbar-thumb { background: #1e1b4b; border-radius: 2px; }
+        
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 5;
+            background: linear-gradient(0deg, rgba(139, 92, 246, 0) 0%, rgba(139, 92, 246, 0.1) 50%, rgba(139, 92, 246, 0) 100%);
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            animation: scan 3s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% { bottom: 100%; }
+            100% { bottom: -100px; }
+        }
+
+        .pulse-border {
+            animation: pulse-indigo 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse-indigo {
+            0%, 100% { border-color: rgba(139, 92, 246, 0.3); }
+            50% { border-color: rgba(139, 92, 246, 0.8); }
+        }
+
+        .terminal-text {
+            animation: typing 0.05s steps(20);
         }
     </style>
     <script type="importmap">
@@ -27,121 +60,136 @@
     }
     </script>
 </head>
-<body class="bg-slate-950 text-white overflow-hidden font-sans">
-    <div id="app" class="flex flex-col h-screen w-full max-w-lg mx-auto bg-slate-950 shadow-2xl overflow-hidden relative selection:bg-blue-500/30">
+<body class="bg-[#030712] text-slate-300 overflow-hidden">
+    <div id="app" class="flex flex-col h-screen w-full max-w-lg mx-auto bg-[#030712] border-x border-indigo-950/50 shadow-2xl relative overflow-hidden">
         
-        <!-- Header Bar -->
-        <header class="bg-slate-900/80 backdrop-blur-md p-5 border-b border-slate-800 flex justify-between items-center z-20">
-            <div class="flex items-center gap-2">
-                <div class="p-2 bg-blue-600/20 rounded-lg">
-                    <i data-lucide="cpu" class="text-blue-400 w-5 h-5"></i>
+        <!-- Top Status Bar -->
+        <header class="p-4 bg-[#030712]/90 backdrop-blur-xl border-b border-indigo-900/40 flex justify-between items-center z-30">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-violet-500 blur-md opacity-20"></div>
+                    <div class="relative bg-indigo-950 p-2 rounded-lg border border-indigo-500/30">
+                        <i data-lucide="shield-check" class="text-violet-400 w-5 h-5"></i>
+                    </div>
                 </div>
                 <div>
-                    <h1 class="text-lg font-black tracking-tight text-white leading-none">
-                        GEMINI <span class="text-blue-500 font-normal">CORE</span>
-                    </h1>
-                    <p id="status-text" class="text-[10px] text-slate-500 font-mono uppercase tracking-widest mt-1">
-                        Classic Mode: Ready
-                    </p>
+                    <h1 class="text-sm font-black tracking-widest text-white uppercase italic">Nova <span class="text-violet-500 not-italic">Vision</span></h1>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span id="status-indicator" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                        <p id="status-text" class="text-[9px] mono text-slate-500 uppercase tracking-tighter">System: Idle</p>
+                    </div>
                 </div>
             </div>
-            
-            <div class="flex flex-col items-end gap-1">
-               <div class="flex items-center gap-2 px-3 py-1 bg-slate-950 rounded-full border border-slate-800">
-                 <div id="conn-dot" class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] transition-all duration-300"></div>
-                 <span id="conn-text" class="text-[10px] font-bold text-slate-300 uppercase">Offline</span>
-               </div>
+
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-indigo-950/30 rounded-md border border-indigo-900/50">
+                <div id="conn-dot" class="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                <span id="conn-text" class="text-[9px] mono font-bold text-slate-400 uppercase">Disconnected</span>
             </div>
         </header>
 
-        <main class="flex-1 flex flex-col p-5 gap-5 overflow-hidden relative z-10">
-            <!-- Viewfinder -->
-            <section id="viewfinder" class="relative group rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-black aspect-video cursor-pointer active:scale-[0.99] transition-transform">
-                <video id="camera-video" playsinline muted autoplay class="w-full h-full object-cover"></video>
-                <div id="camera-overlay" class="absolute inset-0 bg-black transition-opacity duration-700 pointer-events-none opacity-0"></div>
+        <main class="flex-1 flex flex-col p-4 space-y-4 overflow-hidden relative">
+            <!-- Sensor Feed -->
+            <section id="viewfinder" class="relative group rounded-xl overflow-hidden border border-indigo-900/50 shadow-inner bg-black aspect-video cursor-crosshair">
+                <video id="camera-video" playsinline muted autoplay class="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"></video>
+                <div id="camera-overlay" class="absolute inset-0 bg-black opacity-0 transition-opacity duration-1000 pointer-events-none"></div>
+                <div class="scanline"></div>
                 
-                <div class="absolute top-4 left-4 pointer-events-none">
-                    <div class="flex items-center gap-2 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-[10px] font-mono text-blue-400 uppercase tracking-tighter">
-                        <i data-lucide="activity" class="w-3 h-3 animate-pulse"></i>
-                        Live Feed 1080p
+                <!-- HUD Overlays -->
+                <div class="absolute top-3 left-3 flex flex-col gap-1 pointer-events-none">
+                    <div class="bg-black/60 backdrop-blur-sm px-2 py-1 rounded-sm border-l-2 border-violet-500 text-[9px] mono text-violet-400 uppercase">
+                        Feed: Primary_01
+                    </div>
+                    <div class="bg-black/60 backdrop-blur-sm px-2 py-1 rounded-sm border-l-2 border-cyan-500 text-[9px] mono text-cyan-400 uppercase">
+                        Lat: 34.0522° N
                     </div>
                 </div>
 
-                <div class="absolute top-4 right-4 z-10 bg-black/40 backdrop-blur-md p-2 rounded-full border border-white/10">
-                    <i id="mode-icon" data-lucide="sun" class="w-5 h-5 text-amber-400"></i>
+                <div class="absolute bottom-3 right-3 z-10">
+                    <div id="mode-badge" class="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/5">
+                        <i id="mode-icon" data-lucide="sun" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span id="mode-text" class="text-[9px] mono text-white uppercase">Day</span>
+                    </div>
                 </div>
             </section>
 
-            <!-- Action Center -->
-            <div class="grid grid-cols-2 gap-4">
-                <button id="btn-standby" class="flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all border bg-rose-600 border-rose-400 text-white shadow-[0_0_20px_rgba(225,29,72,0.3)]">
+            <!-- Control Interface -->
+            <div class="grid grid-cols-2 gap-3">
+                <button id="btn-standby" class="group relative flex items-center justify-center gap-3 p-4 rounded-xl font-bold transition-all border border-rose-900/50 bg-rose-950/20 text-rose-500 hover:bg-rose-900/30">
+                    <div class="absolute inset-0 bg-rose-500/5 blur-xl group-hover:opacity-100 opacity-0 transition-opacity"></div>
                     <i data-lucide="power" class="w-5 h-5"></i>
-                    <span>STANDBY</span>
+                    <span class="text-xs tracking-widest uppercase italic">Sleep</span>
                 </button>
-                <button id="btn-active" class="flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all border bg-slate-900 border-slate-800 text-slate-500">
-                    <i data-lucide="volume-2" class="w-5 h-5"></i>
-                    <span>ACTIVE</span>
+                <button id="btn-active" class="group relative flex items-center justify-center gap-3 p-4 rounded-xl font-bold transition-all border border-indigo-900/50 bg-indigo-950/20 text-slate-500">
+                    <i data-lucide="eye" class="w-5 h-5"></i>
+                    <span class="text-xs tracking-widest uppercase italic">Watch</span>
                 </button>
             </div>
 
-            <!-- Connectivity and Tools -->
-            <div class="flex flex-col gap-4">
-                <div class="grid grid-cols-3 gap-3">
-                    <button id="btn-connect" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-blue-400 bg-blue-600 text-white hover:bg-blue-500 active:translate-y-0.5 transition-all text-[11px] font-bold uppercase tracking-wider">
-                        <i id="conn-icon" data-lucide="bluetooth" class="w-5 h-5"></i>
-                        <span id="conn-btn-label">Link HC-06</span>
-                    </button>
-                    
-                    <button id="btn-scan" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-100 hover:bg-slate-700 active:translate-y-0.5 transition-all text-[11px] font-bold uppercase tracking-wider">
-                        <i id="scan-icon" data-lucide="camera" class="w-5 h-5"></i>
-                        Manual Scan
-                    </button>
+            <!-- Module Management -->
+            <div class="grid grid-cols-3 gap-3">
+                <button id="btn-connect" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-indigo-500/30 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600/20 transition-all group">
+                    <i id="conn-icon" data-lucide="link" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                    <span id="conn-btn-label" class="text-[10px] mono uppercase font-bold">Uplink</span>
+                </button>
+                
+                <button id="btn-scan" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white transition-all group">
+                    <i id="scan-icon" data-lucide="zap" class="w-5 h-5 group-hover:rotate-12 transition-transform"></i>
+                    <span class="text-[10px] mono uppercase font-bold">Capture</span>
+                </button>
 
-                    <button id="btn-test" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-violet-600 border border-violet-400 text-white hover:bg-violet-500 active:translate-y-0.5 transition-all text-[11px] font-bold uppercase tracking-wider">
-                        <i data-lucide="play-circle" class="w-5 h-5"></i>
-                        Test Audio
-                    </button>
-                </div>
+                <button id="btn-test" class="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-violet-950/30 border border-violet-900/50 text-violet-400 hover:bg-violet-900/40 transition-all group">
+                    <i data-lucide="audio-lines" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                    <span class="text-[10px] mono uppercase font-bold">Signal</span>
+                </button>
+            </div>
 
-                <!-- Sync Progress -->
-                <div id="sync-panel" class="hidden flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-                    <i data-lucide="alert-circle" class="w-4 h-4 text-amber-500"></i>
+            <!-- Sync Task -->
+            <div id="sync-panel" class="hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                <div class="p-3 bg-violet-500/5 border border-violet-500/20 rounded-xl flex items-center gap-3">
+                    <div class="p-1.5 bg-violet-500/20 rounded-md">
+                        <i data-lucide="cloud-download" class="w-4 h-4 text-violet-400"></i>
+                    </div>
                     <div class="flex-1">
-                        <p class="text-[10px] text-amber-200 font-bold uppercase tracking-wider">Syncing Neural Voices</p>
-                        <div class="h-1 bg-slate-800 rounded-full mt-1 overflow-hidden">
-                            <div id="sync-bar" class="h-full bg-amber-500 transition-all duration-500 w-0"></div>
+                        <p class="text-[10px] mono text-violet-300 uppercase font-bold">Fetching Command Audio...</p>
+                        <div class="h-1 bg-slate-800 rounded-full mt-1.5 overflow-hidden">
+                            <div id="sync-bar" class="h-full bg-violet-500 transition-all duration-300 w-0 shadow-[0_0_8px_rgba(139,92,246,0.5)]"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Log Viewer -->
-            <div class="flex-1 min-h-0 bg-gray-950 rounded-lg border border-gray-800 flex flex-col">
-                <div class="p-2 border-b border-gray-800 text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
-                    Kernel Logs
+            <!-- Terminal Logs -->
+            <div class="flex-1 min-h-0 bg-[#020617] rounded-xl border border-indigo-900/30 flex flex-col overflow-hidden shadow-2xl">
+                <div class="px-4 py-2 border-b border-indigo-900/30 bg-indigo-950/20 flex justify-between items-center">
+                    <span class="text-[9px] mono font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                        Telemetry Log
+                    </span>
+                    <span class="text-[8px] mono text-indigo-700">v3.1.0-STABLE</span>
                 </div>
-                <div id="log-container" class="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-[11px]">
-                    <div class="text-gray-600 italic text-center mt-4">Initializing system core...</div>
+                <div id="log-container" class="flex-1 overflow-y-auto p-4 space-y-1.5 mono text-[10px]">
+                    <div class="text-indigo-900">Booting kernel...</div>
                 </div>
             </div>
         </main>
 
-        <!-- Stealth Overlay -->
-        <div id="stealth-overlay" class="absolute inset-0 bg-slate-950/90 z-50 hidden flex items-center justify-center stealth-blur cursor-pointer transition-all duration-1000">
-            <div class="text-center">
-                <div class="relative mb-8 group">
-                    <div class="absolute inset-0 bg-blue-500 blur-3xl rounded-full opacity-20 animate-pulse"></div>
-                    <div class="relative p-6 bg-slate-900 border border-slate-800 rounded-full shadow-2xl">
-                        <i data-lucide="moon" class="w-12 h-12 text-blue-500 mx-auto"></i>
+        <!-- Lockdown Overlay -->
+        <div id="stealth-overlay" class="absolute inset-0 bg-[#030712]/95 z-50 hidden flex items-center justify-center backdrop-blur-2xl cursor-pointer">
+            <div class="text-center relative">
+                <div class="absolute -inset-10 bg-violet-500/10 blur-[100px] animate-pulse"></div>
+                <div class="relative flex flex-col items-center">
+                    <div class="p-8 rounded-full border border-indigo-500/20 bg-indigo-950/30 shadow-2xl mb-6 group">
+                        <i data-lucide="eye-off" class="w-16 h-16 text-violet-500 transition-transform duration-700 group-hover:scale-110"></i>
+                    </div>
+                    <h2 class="text-white text-xs font-black tracking-[0.5em] uppercase mb-2">Observation Mode</h2>
+                    <p class="text-indigo-700 text-[9px] mono uppercase tracking-widest">Active Background Surveillance</p>
+                    
+                    <div class="mt-8 flex gap-1">
+                        <div class="w-1 h-1 bg-violet-500/40 rounded-full animate-ping"></div>
+                        <div class="w-1 h-1 bg-violet-500/40 rounded-full animate-ping" style="animation-delay: 0.2s"></div>
+                        <div class="w-1 h-1 bg-violet-500/40 rounded-full animate-ping" style="animation-delay: 0.4s"></div>
                     </div>
                 </div>
-                <p class="text-slate-100 font-black tracking-[0.3em] uppercase text-xs">STEALTH MODE</p>
-                <div class="flex items-center justify-center gap-2 mt-4">
-                   <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
-                   <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 200ms"></div>
-                   <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 400ms"></div>
-                </div>
-                <p class="text-slate-500 text-[10px] mt-6 font-mono uppercase tracking-widest">Tap to resume</p>
             </div>
         </div>
     </div>
@@ -149,253 +197,240 @@
     <script type="module">
         import { GoogleGenAI, Modality } from "@google/genai";
 
-        // --- CONSTANTS ---
-        const VOICE_DEFINITIONS = [
-            { key: "STAND", prompt: "Say: Stand", repeats: 2 },
-            { key: "SIT", prompt: "Say: Sit", repeats: 2 },
-            { key: "DOWN", prompt: "Say: Down", repeats: 2 },
-            { key: "SIDE", prompt: "Say: Side", repeats: 2 },
-            { key: "PAW SHAKE", prompt: "Say: Paw Shake", repeats: 2 },
-            { key: "GOOD DOG", prompt: "Say enthusiastically: Good Dog!", repeats: 1 },
+        // --- CONFIG ---
+        const COMMANDS = [
+            { key: "STAND", prompt: "Say clearly: Stand", repeats: 2 },
+            { key: "SIT", prompt: "Say clearly: Sit", repeats: 2 },
+            { key: "DOWN", prompt: "Say clearly: Down", repeats: 2 },
+            { key: "SIDE", prompt: "Say clearly: Side", repeats: 2 },
+            { key: "PAW SHAKE", prompt: "Say clearly: Paw Shake", repeats: 2 },
+            { key: "GOOD DOG", prompt: "Say cheerfully: Well done, good dog!", repeats: 1 },
             { key: "NO", prompt: "Say firmly: No!", repeats: 1 },
         ];
-        const TIMEOUT_SECONDS = 20;
+        const SCAN_LIMIT_SECONDS = 15;
 
-        // --- STATE ---
+        // --- APP STATE ---
         let state = {
-            isOn: false,
-            isConnected: false,
-            isDimmed: false,
-            isScanning: false,
-            isProcessing: false,
+            active: false,
+            connected: false,
+            dimmed: false,
+            scanning: false,
+            processing: false,
             logs: [],
-            voiceBuffers: new Map(),
-            isPlaying: false
+            voiceCache: new Map(),
+            playing: false
         };
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         let audioCtx = null;
-        let serialPort = null;
-        let serialWriter = null;
-        let wakeLock = null;
-        let analysisTimeout = null;
+        let serial = { port: null, writer: null };
+        let screenLock = null;
+        let scanTimer = null;
 
-        // --- HELPERS ---
-        function addLog(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-            state.logs.push({ id: Math.random().toString(36), timestamp, message, type });
-            renderLogs();
-        }
-
-        function renderLogs() {
+        // --- UTILS ---
+        function writeLog(msg, level = 'info') {
+            const time = new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+            state.logs.push({ time, msg, level });
+            if (state.logs.length > 50) state.logs.shift();
+            
             const container = document.getElementById('log-container');
             container.innerHTML = state.logs.map(log => `
-                <div class="flex gap-2 log-entry">
-                    <span class="text-gray-500 whitespace-nowrap">[${log.timestamp}]</span>
+                <div class="flex gap-2 log-entry terminal-text">
+                    <span class="text-indigo-900 shrink-0">${log.time}</span>
                     <span class="${
-                        log.type === 'error' ? 'text-red-400' :
-                        log.type === 'success' ? 'text-green-400' :
-                        log.type === 'warning' ? 'text-yellow-400' :
-                        'text-blue-300'
-                    }">${log.message}</span>
+                        level === 'error' ? 'text-rose-500' :
+                        level === 'success' ? 'text-emerald-400' :
+                        level === 'warning' ? 'text-amber-500 font-bold' :
+                        'text-indigo-400'
+                    }">${log.msg}</span>
                 </div>
             `).join('');
             container.scrollTop = container.scrollHeight;
         }
 
-        function decodePCM(data, ctx, sampleRate = 24000, numChannels = 1) {
-            let pcmData = new Int16Array(data.buffer, data.byteOffset, data.byteLength / 2);
-            const frameCount = pcmData.length / numChannels;
-            const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-            for (let channel = 0; channel < numChannels; channel++) {
-                const channelData = buffer.getChannelData(channel);
-                for (let i = 0; i < frameCount; i++) {
-                    channelData[i] = pcmData[i * numChannels + channel] / 32768.0;
-                }
-            }
+        async function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+        }
+
+        function pcmToBuffer(data, ctx) {
+            const int16 = new Int16Array(data.buffer, data.byteOffset, data.byteLength / 2);
+            const buffer = ctx.createBuffer(1, int16.length, 24000);
+            const channel = buffer.getChannelData(0);
+            for (let i = 0; i < int16.length; i++) channel[i] = int16[i] / 32768.0;
             return buffer;
         }
 
-        function decodeBase64(base64) {
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            return bytes;
-        }
-
-        // --- CORE FUNCTIONS ---
-        async function loadVoices() {
+        // --- ACTIONS ---
+        async function preloadSignals() {
             const panel = document.getElementById('sync-panel');
             const bar = document.getElementById('sync-bar');
             panel.classList.remove('hidden');
-            addLog("Syncing neural voice commands...", "info");
+            writeLog("Synchronizing command signatures...", "info");
 
-            let loaded = 0;
-            for (const def of VOICE_DEFINITIONS) {
+            let count = 0;
+            for (const cmd of COMMANDS) {
                 try {
-                    const response = await ai.models.generateContent({
+                    const res = await ai.models.generateContent({
                         model: "gemini-2.5-flash-preview-tts",
-                        contents: [{ parts: [{ text: def.prompt }] }],
+                        contents: [{ parts: [{ text: cmd.prompt }] }],
                         config: {
                             responseModalities: [Modality.AUDIO],
                             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
                         }
                     });
-                    const base64 = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-                    if (base64 && audioCtx) {
-                        const buffer = decodePCM(decodeBase64(base64), audioCtx);
-                        state.voiceBuffers.set(def.key, buffer);
-                        loaded++;
-                        bar.style.width = `${(loaded / VOICE_DEFINITIONS.length) * 100}%`;
+                    const base64 = res.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                    if (base64) {
+                        const binary = atob(base64);
+                        const bytes = new Uint8Array(binary.length);
+                        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                        state.voiceCache.set(cmd.key, pcmToBuffer(bytes, audioCtx));
+                        count++;
+                        bar.style.width = `${(count / COMMANDS.length) * 100}%`;
                     }
-                } catch (e) {
-                    addLog(`Voice fail: ${def.key}`, "error");
-                }
+                } catch (e) { writeLog(`Signal Error: ${cmd.key}`, "error"); }
             }
-            addLog(`Voice sync complete (${loaded}/${VOICE_DEFINITIONS.length})`, "success");
-            setTimeout(() => panel.classList.add('hidden'), 2000);
+            writeLog(`Audio Uplink Ready (${count}/${COMMANDS.length})`, "success");
+            setTimeout(() => panel.classList.add('hidden'), 3000);
         }
 
-        async function playVoice(commandKey) {
-            if (state.isPlaying) return;
-            const buffer = state.voiceBuffers.get(commandKey);
-            const def = VOICE_DEFINITIONS.find(d => d.key === commandKey);
+        async function triggerSignal(key) {
+            if (state.playing) return;
+            const buffer = state.voiceCache.get(key);
+            const config = COMMANDS.find(c => c.key === key);
             if (!buffer || !audioCtx) return;
 
-            state.isPlaying = true;
+            state.playing = true;
             try {
-                if (audioCtx.state === 'suspended') await audioCtx.resume();
-                addLog(`Executing: "${commandKey}"`, "success");
-                for (let i = 0; i < def.repeats; i++) {
+                await initAudio();
+                writeLog(`BROADCASTING: ${key}`, "warning");
+                for (let i = 0; i < config.repeats; i++) {
                     const source = audioCtx.createBufferSource();
                     source.buffer = buffer;
                     source.connect(audioCtx.destination);
-                    const waitEnd = new Promise(r => source.onended = r);
+                    const ended = new Promise(r => source.onended = r);
                     source.start();
-                    await waitEnd;
-                    if (i < def.repeats - 1) await new Promise(r => setTimeout(r, 800));
+                    await ended;
+                    if (i < config.repeats - 1) await new Promise(r => setTimeout(r, 600));
                 }
-            } catch (e) { addLog("Audio error", "error"); }
-            finally { state.isPlaying = false; }
+            } catch (e) { writeLog("Signal Interrupt", "error"); }
+            finally { state.playing = false; }
         }
 
-        async function takePhoto() {
-            const video = document.getElementById('camera-video');
-            const canvas = document.createElement('canvas');
-            const maxW = 800, maxH = 600;
-            let w = video.videoWidth, h = video.videoHeight;
-            const ratio = Math.min(maxW / w, maxH / h, 1);
-            canvas.width = w * ratio; canvas.height = h * ratio;
-            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-        }
-
-        async function runCycle() {
-            if (state.isProcessing) return;
-            state.isProcessing = true;
-            updateUIState();
+        async function runAnalysis() {
+            if (state.processing) return;
+            state.processing = true;
+            updateUI();
             
-            setDimmed(false);
-            addLog("Analyzing visual frame...", "info");
+            toggleStealth(false);
+            writeLog("Capturing high-res frame...", "info");
             
-            analysisTimeout = setTimeout(() => {
-                addLog("Analysis timed out", "error");
-                state.isProcessing = false;
-                if (state.isOn) setDimmed(true);
-                updateUIState();
-            }, TIMEOUT_SECONDS * 1000);
+            scanTimer = setTimeout(() => {
+                writeLog("Cloud sync timed out", "error");
+                state.processing = false;
+                if (state.active) toggleStealth(true);
+                updateUI();
+            }, SCAN_LIMIT_SECONDS * 1000);
 
             try {
-                const b64 = await takePhoto();
-                const response = await ai.models.generateContent({
+                const video = document.getElementById('camera-video');
+                const canvas = document.createElement('canvas');
+                const scale = Math.min(800 / video.videoWidth, 600 / video.videoHeight, 1);
+                canvas.width = video.videoWidth * scale; canvas.height = video.videoHeight * scale;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+
+                const res = await ai.models.generateContent({
                     model: 'gemini-3-pro-preview',
                     contents: {
                         parts: [
-                            { text: "Analyze dog pose: 0=None, 1=Standing, 2=Sitting, 3=Lying down, 4=On back/side. Return DIGIT ONLY." },
+                            { text: "Analyze subject position. 0=Empty, 1=Standing, 2=Sitting, 3=Lying, 4=Horizontal. Reply with DIGIT ONLY." },
                             { inlineData: { mimeType: 'image/jpeg', data: b64 } }
                         ]
-                    },
-                    config: { temperature: 0.1 }
+                    }
                 });
-                const result = response.text?.trim().match(/[0-4]/)?.[0] || "0";
-                addLog(`Gemini result: ${result}`, "success");
+                const result = res.text?.trim().match(/[0-4]/)?.[0] || "0";
+                writeLog(`Classification: ${result}`, "success");
                 
-                if (serialWriter && state.isConnected) {
-                    await serialWriter.write(new TextEncoder().encode(result));
-                    addLog(`Sent to HC-06: ${result}`, "info");
+                if (serial.writer && state.connected) {
+                    await serial.writer.write(new TextEncoder().encode(result));
+                    writeLog(`Payload delivered: ${result}`, "info");
                 }
-            } catch (e) {
-                addLog(`Error: ${e.message}`, "error");
-            } finally {
-                clearTimeout(analysisTimeout);
-                state.isProcessing = false;
-                if (state.isOn) setDimmed(true);
-                updateUIState();
+            } catch (e) { writeLog(`API Error: ${e.message}`, "error"); }
+            finally {
+                clearTimeout(scanTimer);
+                state.processing = false;
+                if (state.active) toggleStealth(true);
+                updateUI();
             }
         }
 
-        async function connectSerial() {
-            if (!('serial' in navigator)) return addLog("Web Serial unsupported", "error");
-            state.isScanning = true;
-            updateUIState();
+        async function openUplink() {
+            if (!navigator.serial) return writeLog("Serial Port Blocked", "error");
+            state.scanning = true;
+            updateUI();
             try {
-                addLog("Searching for HC-06...", "info");
-                serialPort = await navigator.serial.requestPort();
-                await serialPort.open({ baudRate: 9600 });
-                serialWriter = serialPort.writable.getWriter();
-                state.isConnected = true;
-                addLog("Bluetooth Classic Linked", "success");
+                writeLog("Polling for Uplink Module...", "info");
+                serial.port = await navigator.serial.requestPort();
+                await serial.port.open({ baudRate: 9600 });
+                serial.writer = serial.port.writable.getWriter();
+                state.connected = true;
+                writeLog("Module Synchronized", "success");
                 
-                const reader = serialPort.readable.getReader();
+                const reader = serial.port.readable.getReader();
                 (async () => {
                     const decoder = new TextDecoder();
                     try {
                         while (true) {
                             const { value, done } = await reader.read();
                             if (done) break;
-                            const text = decoder.decode(value).trim().toUpperCase();
-                            if (text) {
-                                addLog(`Serial In: ${text}`, "info");
-                                if (text.includes("PHOTO")) {
-                                    if (state.isOn) runCycle();
+                            const input = decoder.decode(value).trim().toUpperCase();
+                            if (input) {
+                                writeLog(`Incoming: ${input}`, "info");
+                                if (input.includes("PHOTO")) {
+                                    if (state.active) runAnalysis();
                                 } else {
-                                    const matched = VOICE_DEFINITIONS.find(d => text.includes(d.key));
-                                    if (matched) playVoice(matched.key);
+                                    const match = COMMANDS.find(c => input.includes(c.key));
+                                    if (match) triggerSignal(match.key);
                                 }
                             }
                         }
-                    } catch (e) { addLog("Serial loss", "error"); }
-                    finally { state.isConnected = false; updateUIState(); }
+                    } catch (e) { writeLog("Uplink Lost", "error"); }
+                    finally { state.connected = false; updateUI(); }
                 })();
-            } catch (e) { addLog(`Connect fail: ${e.message}`, "error"); }
-            finally { state.isScanning = false; updateUIState(); }
+            } catch (e) { writeLog(`Uplink Failed: ${e.message}`, "error"); }
+            finally { state.scanning = false; updateUI(); }
         }
 
-        // --- UI UPDATES ---
-        function setDimmed(val) {
-            state.isDimmed = val;
+        // --- UI RE-RENDER ---
+        function toggleStealth(val) {
+            state.dimmed = val;
             const overlay = document.getElementById('stealth-overlay');
-            const camOverlay = document.getElementById('camera-overlay');
-            const modeIcon = document.getElementById('mode-icon');
+            const camCover = document.getElementById('camera-overlay');
+            const badgeIcon = document.getElementById('mode-icon');
+            const badgeText = document.getElementById('mode-text');
             
             if (val) {
                 overlay.classList.remove('hidden');
-                camOverlay.classList.replace('opacity-0', 'opacity-90');
-                modeIcon.setAttribute('data-lucide', 'moon');
-                modeIcon.classList.replace('text-amber-400', 'text-blue-400');
+                camCover.classList.replace('opacity-0', 'opacity-90');
+                badgeIcon.setAttribute('data-lucide', 'moon');
+                badgeIcon.classList.replace('text-amber-400', 'text-violet-400');
+                badgeText.textContent = "Night";
             } else {
                 overlay.classList.add('hidden');
-                camOverlay.classList.replace('opacity-90', 'opacity-0');
-                modeIcon.setAttribute('data-lucide', 'sun');
-                modeIcon.classList.replace('text-blue-400', 'text-amber-400');
+                camCover.classList.replace('opacity-90', 'opacity-0');
+                badgeIcon.setAttribute('data-lucide', 'sun');
+                badgeIcon.classList.replace('text-violet-400', 'text-amber-400');
+                badgeText.textContent = "Day";
             }
             lucide.createIcons();
         }
 
-        function updateUIState() {
-            const btnStandby = document.getElementById('btn-standby');
-            const btnActive = document.getElementById('btn-active');
-            const btnConnect = document.getElementById('btn-connect');
+        function updateUI() {
+            const btnSleep = document.getElementById('btn-standby');
+            const btnWatch = document.getElementById('btn-active');
+            const btnLink = document.getElementById('btn-connect');
+            const statusIndicator = document.getElementById('status-indicator');
             const statusTxt = document.getElementById('status-text');
             const dot = document.getElementById('conn-dot');
             const connTxt = document.getElementById('conn-text');
@@ -403,71 +438,77 @@
             const connLabel = document.getElementById('conn-btn-label');
             const scanIcon = document.getElementById('scan-icon');
 
-            btnStandby.className = `flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all border ${!state.isOn ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_20px_rgba(225,29,72,0.3)]' : 'bg-slate-900 border-slate-800 text-slate-500'}`;
-            btnActive.className = `flex items-center justify-center gap-3 p-4 rounded-2xl font-bold transition-all border ${state.isOn ? 'bg-emerald-600 border-emerald-400 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]' : 'bg-slate-900 border-slate-800 text-slate-500'}`;
+            // Sleep vs Watch buttons
+            btnSleep.className = `group relative flex items-center justify-center gap-3 p-4 rounded-xl font-bold transition-all border ${!state.active ? 'border-rose-500 bg-rose-600 text-white shadow-[0_0_20px_rgba(244,63,94,0.3)]' : 'border-rose-900/50 bg-rose-950/20 text-rose-500'}`;
+            btnWatch.className = `group relative flex items-center justify-center gap-3 p-4 rounded-xl font-bold transition-all border ${state.active ? 'border-indigo-500 bg-indigo-600 text-white shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'border-indigo-900/50 bg-indigo-950/20 text-slate-500'}`;
             
-            statusTxt.textContent = `Classic Mode: ${state.isProcessing ? 'Analyzing...' : 'Ready'}`;
+            // System status
+            statusIndicator.className = `w-1.5 h-1.5 rounded-full ${state.processing ? 'bg-violet-400 animate-pulse' : (state.active ? 'bg-indigo-400' : 'bg-slate-700')}`;
+            statusTxt.textContent = `System: ${state.processing ? 'Syncing' : (state.active ? 'Monitoring' : 'Idle')}`;
             
-            dot.className = `w-2 h-2 rounded-full ${state.isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]'}`;
-            connTxt.textContent = state.isConnected ? 'Linked' : 'Offline';
+            // Conn status
+            dot.className = `w-1.5 h-1.5 rounded-full ${state.connected ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.8)]'}`;
+            connTxt.textContent = state.connected ? 'Linked' : 'Disconnected';
             
-            connIcon.setAttribute('data-lucide', state.isScanning ? 'refresh-cw' : (state.isConnected ? 'bluetooth-connected' : 'bluetooth'));
-            if (state.isScanning) connIcon.classList.add('animate-spin'); else connIcon.classList.remove('animate-spin');
-            connLabel.textContent = state.isScanning ? 'Searching' : (state.isConnected ? 'Paired' : 'Link HC-06');
+            // Uplink button
+            connIcon.setAttribute('data-lucide', state.scanning ? 'loader-2' : (state.connected ? 'link-2' : 'link'));
+            if (state.scanning) connIcon.classList.add('animate-spin'); else connIcon.classList.remove('animate-spin');
+            connLabel.textContent = state.scanning ? 'Polling' : (state.connected ? 'Uplinked' : 'Uplink');
             
-            if (state.isProcessing) scanIcon.classList.add('animate-pulse', 'text-blue-400'); else scanIcon.classList.remove('animate-pulse', 'text-blue-400');
+            // Scan button
+            if (state.processing) scanIcon.classList.add('animate-spin', 'text-violet-400'); else scanIcon.classList.remove('animate-spin', 'text-violet-400');
             
             lucide.createIcons();
         }
 
         // --- INIT ---
-        window.addEventListener('DOMContentLoaded', async () => {
+        window.addEventListener('load', async () => {
             lucide.createIcons();
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
             
-            // Camera Init
+            // Video Init
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                const video = document.getElementById('camera-video');
-                video.srcObject = stream;
-                addLog("Vision system initialized", "success");
-            } catch (e) { addLog("Camera access denied", "error"); }
+                document.getElementById('camera-video').srcObject = stream;
+                writeLog("Vision sensors online", "success");
+            } catch (e) { writeLog("Sensor Failure: No Camera", "error"); }
 
-            if (process.env.API_KEY) loadVoices(); else addLog("API Key missing", "error");
+            // Audio Preload
+            await initAudio();
+            if (process.env.API_KEY) preloadSignals();
 
-            // Events
+            // Interactions
             document.getElementById('btn-standby').onclick = () => {
-                state.isOn = false;
-                addLog("System standby", "warning");
-                setDimmed(false);
-                if (wakeLock) { wakeLock.release(); wakeLock = null; }
-                updateUIState();
+                state.active = false;
+                writeLog("Entering sleep protocol", "warning");
+                toggleStealth(false);
+                if (screenLock) { screenLock.release(); screenLock = null; }
+                updateUI();
             };
 
             document.getElementById('btn-active').onclick = async () => {
-                state.isOn = true;
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                addLog("Security mode enabled", "info");
-                setDimmed(true);
-                if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
-                updateUIState();
+                state.active = true;
+                await initAudio();
+                writeLog("Watch protocol active", "success");
+                toggleStealth(true);
+                if (navigator.wakeLock) screenLock = await navigator.wakeLock.request('screen');
+                updateUI();
             };
 
-            document.getElementById('btn-connect').onclick = connectSerial;
-            document.getElementById('btn-scan').onclick = () => { if (state.isOn) runCycle(); };
+            document.getElementById('btn-connect').onclick = openUplink;
+            document.getElementById('btn-scan').onclick = () => { if (state.active) runAnalysis(); };
             document.getElementById('btn-test').onclick = () => {
-                const rnd = VOICE_DEFINITIONS[Math.floor(Math.random() * VOICE_DEFINITIONS.length)];
-                playVoice(rnd.key);
+                const random = COMMANDS[Math.floor(Math.random() * COMMANDS.length)];
+                triggerSignal(random.key);
             };
 
-            const wake = () => {
-                if (state.isDimmed) {
-                    setDimmed(false);
-                    setTimeout(() => { if (state.isOn && !state.isProcessing) setDimmed(true); }, 10000);
+            const wakeTrigger = () => {
+                if (state.dimmed) {
+                    toggleStealth(false);
+                    setTimeout(() => { if (state.active && !state.processing) toggleStealth(true); }, 8000);
                 }
             };
-            document.getElementById('viewfinder').onclick = wake;
-            document.getElementById('stealth-overlay').onclick = wake;
+            document.getElementById('viewfinder').onclick = wakeTrigger;
+            document.getElementById('stealth-overlay').onclick = wakeTrigger;
         });
     </script>
 </body>
